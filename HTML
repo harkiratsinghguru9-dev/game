@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Flappy Bird</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+body{
+  margin:0;
+  background:#222;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  height:100vh;
+  font-family:Arial,sans-serif;
+  touch-action:manipulation;
+}
+#gameBox{position:relative}
+canvas{
+  background:#87ceeb;
+  border-radius:12px;
+}
+.overlay{
+  position:absolute;
+  inset:0;
+  background:rgba(0,0,0,.5);
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  align-items:center;
+  color:#fff;
+  text-align:center;
+}
+button{
+  padding:12px 24px;
+  margin:8px;
+  font-size:18px;
+  border:none;
+  border-radius:8px;
+  background:#ffcc00;
+  cursor:pointer;
+}
+#tap{
+  position:absolute;
+  bottom:15px;
+  right:15px;
+  padding:15px 20px;
+  border-radius:50px;
+  font-weight:bold;
+}
+</style>
+</head>
+<body>
+
+<div id="gameBox">
+<canvas id="c" width="400" height="600"></canvas>
+
+<div id="start" class="overlay">
+  <h1>Flappy Bird</h1>
+  <p id="best"></p>
+  <h3>Select Difficulty</h3>
+  <button onclick="startGame('easy')">Easy</button>
+  <button onclick="startGame('normal')">Normal</button>
+  <button onclick="startGame('hard')">Hard</button>
+</div>
+
+<div id="over" class="overlay" style="display:none">
+  <h2>Game Over</h2>
+  <p id="stats"></p>
+  <button onclick="restart()">Restart</button>
+</div>
+
+<button id="tap">TAP</button>
+</div>
+
+<script>
+const c=document.getElementById("c"),x=c.getContext("2d");
+const start=document.getElementById("start");
+const over=document.getElementById("over");
+const bestTxt=document.getElementById("best");
+const stats=document.getElementById("stats");
+const tap=document.getElementById("tap");
+
+let bestScore=localStorage.getItem("bestScore")||0;
+let bestLevel=localStorage.getItem("bestLevel")||1;
+bestTxt.innerHTML=`Best Score: ${bestScore}<br>Best Level: ${bestLevel}`;
+
+let bird, pipes, frame, score, level, speed, gap, running=false;
+const G=0.5,J=-9;
+
+const flapSound=new Audio("https://www.soundjay.com/button/beep-07.wav");
+const hitSound=new Audio("https://www.soundjay.com/button/beep-10.wav");
+
+document.addEventListener("keydown",e=>e.code==="Space"&&flap());
+tap.onclick=flap;
+
+function flap(){
+ if(!running)return;
+ bird.v=J;
+ flapSound.currentTime=0; flapSound.play();
+}
+
+function startGame(d){
+ if(d==="easy"){speed=2;gap=200}
+ if(d==="normal"){speed=2.6;gap=160}
+ if(d==="hard"){speed=3.2;gap=120}
+ reset();
+ start.style.display="none";
+ running=true;
+ loop();
+}
+
+function reset(){
+ bird={x:80,y:300,r:15,v:0};
+ pipes=[]; frame=0; score=0; level=1;
+}
+
+function restart(){
+ over.style.display="none";
+ reset(); running=true; loop();
+}
+
+function addPipe(){
+ let t=Math.random()*250+50;
+ pipes.push({x:c.width,top:t,bottom:t+gap,pass:false});
+}
+
+function hit(p){
+ return bird.x+bird.r>p.x && bird.x-bird.r<p.x+50 &&
+ (bird.y-bird.r<p.top||bird.y+bird.r>p.bottom);
+}
+
+function levelUp(){
+ level=Math.floor(score/5)+1;
+ speed+=0.15;
+ gap=Math.max(90,gap-2);
+}
+
+function end(){
+ running=false;
+ hitSound.play();
+ if(score>bestScore){bestScore=score;localStorage.setItem("bestScore",score)}
+ if(level>bestLevel){bestLevel=level;localStorage.setItem("bestLevel",level)}
+ stats.innerHTML=`Score: ${score}<br>Level: ${level}<br><br>Best Score: ${bestScore}<br>Best Level: ${bestLevel}`;
+ over.style.display="flex";
+}
+
+function loop(){
+ if(!running)return;
+ x.clearRect(0,0,c.width,c.height);
+
+ bird.v+=G; bird.y+=bird.v;
+ x.fillStyle="yellow";
+ x.beginPath(); x.arc(bird.x,bird.y,bird.r,0,Math.PI*2); x.fill();
+
+ pipes.forEach(p=>{
+  p.x-=speed;
+  x.fillStyle="green";
+  x.fillRect(p.x,0,50,p.top);
+  x.fillRect(p.x,p.bottom,50,c.height);
+  if(!p.pass && p.x+50<bird.x){p.pass=true;score++;levelUp()}
+  if(hit(p))end();
+ });
+
+ pipes=pipes.filter(p=>p.x>-50);
+ if(frame%120===0)addPipe();
+ if(bird.y<0||bird.y>c.height)end();
+
+ x.fillStyle="#000"; x.font="20px Arial";
+ x.fillText("Score: "+score,10,30);
+ x.fillText("Level: "+level,10,55);
+
+ frame++;
+ requestAnimationFrame(loop);
+}
+</script>
+</body>
+</html>
